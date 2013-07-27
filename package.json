@@ -1,21 +1,22 @@
 {
-  "name": "ip-tag",
+  "name": "collectd",
   "types": ["module"],
   "version": "1.4",
-  "homepage": "http://github.com/shinken-monitoring/mod-ip-tag",
+  "homepage": "http://github.com/shinken-monitoring/mod-collectd",
   "author": "Jean Gabès",
-  "description": "Tag host by their IP ranges",
+  "description": "Receive passive results from a collectd daemon",
   "contributors": [
     {
       "name": "Jean Gabès",
       "email": "naparuba@gmail.com"
     }
   ],
-  "repository": "https://github.com/shinken-monitoring/mod-ip-tag",
+  "repository": "https://github.com/shinken-monitoring/mod-collectd",
   "keywords": [
     "module",
     "arbiter",
-    "ip"
+    "receiver",
+    "collectd"
   ],
   "dependencies": {
     "shinken": ">=1.4"
