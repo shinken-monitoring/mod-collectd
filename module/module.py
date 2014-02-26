@@ -7,6 +7,7 @@
 #    Gerhard Lausser, Gerhard.Lausser@consol.de
 #    Gregory Starck, g.starck@gmail.com
 #    Hartmut Goebel, h.goebel@goebel-consult.de
+#    Thibault Cohen, thibault.cohen@savoirfairelinux.com
 #
 # This file is part of Shinken.
 #
@@ -23,10 +24,14 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with Shinken.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Collectd Plugin for Receiver or arbiter
+"""
+
 import os
 import time
-
 from itertools import izip
+
 from shinken.basemodule import BaseModule
 from shinken.external_command import ExternalCommand
 from shinken.log import logger
@@ -41,8 +46,10 @@ DEFAULT_PORT = 25826
 DEFAULT_MULTICAST_IP = "239.192.74.66"
 BUFFER_SIZE = 4096
 
-# called by the plugin manager to get a broker
 def get_instance(plugin):
+    """ This function is called by the module manager
+    to get an instance of this module
+    """
     if hasattr(plugin, "multicast"):
         multicast = plugin.multicast.lower() in ("yes", "true", "1")
     else:
@@ -105,6 +112,8 @@ elements = {}
 
 
 def decode_values(pktype, plen, buf):
+    """ Decode values from collectd requests
+    """
     nvalues = short.unpack_from(buf, header.size)[0]
     off = header.size + short.size + nvalues
     valskip = double.size
@@ -133,11 +142,15 @@ def decode_values(pktype, plen, buf):
 
 # Get a u64
 def decode_number(pktype, pklen, buf):
+    """ Decode number typed value
+    """
     return number.unpack_from(buf, header.size)[0]
 
 
 # Get a simple char
 def decode_string(msgtype, pklen, buf):
+    """ Decode string typed value
+    """
     return buf[header.size:pklen-1]
 
 # Mapping of message types to decoding functions.
@@ -159,6 +172,8 @@ decoder_mapping = {
 
 
 def decode_packet(buf):
+    """ decode packet from collectd requests
+    """
     off = 0
     buflen = len(buf)
     while off < buflen:
@@ -176,7 +191,12 @@ def decode_packet(buf):
 
 
 class Data(list, object):
+    """ This class will transform datas 
+
+    :grouped_collectd_plugins: list of collecd plugins to group
+    """
     def __init__(self, grouped_collectd_plugins=[],  **kw):
+
         self.kind = 0
         self.time = 0
         self.interval = 0
@@ -191,9 +211,13 @@ class Data(list, object):
         self.grouped_collectd_plugins = grouped_collectd_plugins
 
     def __str__(self):
+        """ Return a readable format of a Data object
+        """
         return "[%i] %s" % (self.time, self.values)
 
     def get_srv_desc(self):
+        """ Determine service name from collectd datas
+        """
         r = self.plugin
         if not r in self.grouped_collectd_plugins:
             if self.plugininstance is None:
@@ -201,12 +225,18 @@ class Data(list, object):
         return r
 
     def get_message(self):
+        """ Get message of a Data object
+        """
         return self.message
 
     def get_kind(self):
+        """ Get kind of a Data object
+        """
         return self.kind
 
     def get_metric_name(self):
+        """ Determine perf data name from collectd datas
+        """
         r = self.type
         if self.plugin in self.grouped_collectd_plugins:
             if not self.plugininstance is None:
@@ -216,11 +246,15 @@ class Data(list, object):
         return r
 
     def get_metric_values(self):
+        """ Determine perf datas from collectd datas
+        """
         if len(self.values) == 0:
             return None
         return self.values
 
     def get_name(self):
+        """ Determine data name from collectd datas
+        """
         if not self.host:
             return None
         srv_desc = self.get_srv_desc()
@@ -228,9 +262,13 @@ class Data(list, object):
         return r
 
     def get_time(self):
+        """ Return data time from collectd datas
+        """
         return self.time
 
     def get_message_command(self):
+        """ Return data severity (exit code) from collectd datas
+        """
         now = int(time.time())
         if self.severity == 4: # OK
             returncode = 0
@@ -244,6 +282,14 @@ class Data(list, object):
 
 
 class CollectdServer(object):
+    """ Collectd server
+    This class listen and and handle collectd requests
+
+    :host:                     Bind address
+    :port:                     Bind port
+    :multicast:                Enable multisite
+    :grouped_collectd_plugins: List of collecd plugins to group
+    """
     def __init__(self, host, port, multicast, grouped_collectd_plugins=[]):
         self.host = host
         self.port = port
@@ -271,6 +317,8 @@ class CollectdServer(object):
         logger.info("[Collectd] Socket is opened")
 
     def interpret_opcodes(self, iterable):
+        """ Decode some stuff from Collectd
+        """
         d = Data(self.grouped_collectd_plugins)
 
         for kind, data in iterable:
@@ -302,14 +350,20 @@ class CollectdServer(object):
             yield d
 
     def receive(self):
+        """ Read socket
+        """
         return self._sock.recv(BUFFER_SIZE)
 
     def decode(self, buf=None):
+        """ Return a decode packet
+        """
         if buf is None:
             buf = self.receive()
         return decode_packet(buf)
 
     def read(self, iterable=None):
+        """ Return a list of decoded packets
+        """
         if iterable is None:
             iterable = self.decode()
         if isinstance(iterable, basestring):
@@ -318,6 +372,7 @@ class CollectdServer(object):
 
 
 class Element(object):
+    """ Element store service name and all perfdatas before send it in a external command """
     def __init__(self, host_name, sdesc, interval):
         self.host_name = host_name
         self.sdesc = sdesc
@@ -327,6 +382,7 @@ class Element(object):
         self.got_new_data = False
 
     def add_perf_data(self, mname, mvalues, mtime):
+        """ Add perf datas to the message to send to Shinken """
         if not mvalues:
             return
 
@@ -350,6 +406,7 @@ class Element(object):
         self.got_new_data = True
 
     def get_command(self):
+        """ Prepare the external command for Shinken """
         if len(self.perf_datas) == 0:
             return None
 
@@ -373,6 +430,7 @@ class Element(object):
 
 
 class Collectd_arbiter(BaseModule):
+    """ Main class for this collecitd module """ 
     def __init__(self, modconf, host, port, multicast, grouped_collectd_plugins=[]):
         BaseModule.__init__(self, modconf)
         self.host = host
@@ -382,6 +440,7 @@ class Collectd_arbiter(BaseModule):
 
     # When you are in "external" mode, that is the main loop of your process
     def main(self):
+        """ Plugin main loop """
         self.set_proctitle(self.name)
         self.set_exit_handler()
 	
