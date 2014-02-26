@@ -46,6 +46,7 @@ DEFAULT_PORT = 25826
 DEFAULT_MULTICAST_IP = "239.192.74.66"
 BUFFER_SIZE = 4096
 
+
 def get_instance(plugin):
     """ This function is called by the module manager
     to get an instance of this module
@@ -56,11 +57,11 @@ def get_instance(plugin):
         multicast = False
 
     if hasattr(plugin, 'host'):
-        host = plugin.host      
+        host = plugin.host
     else:
         host = DEFAULT_MULTICAST_IP
         multicast = True
-    
+
     if hasattr(plugin, 'port'):
         port = int(plugin.port)
     else:
@@ -68,7 +69,8 @@ def get_instance(plugin):
 
     if hasattr(plugin, 'grouped_collectd_plugins'):
         grouped_collectd_plugins = plugin.grouped_collectd_plugins
-        grouped_collectd_plugins = [name.strip() for name in plugin.grouped_collectd_plugins.split(',')]
+        grouped_collectd_plugins = [name.strip()
+                                    for name in plugin.grouped_collectd_plugins.split(',')]
     else:
         grouped_collectd_plugins = []
 
@@ -84,18 +86,18 @@ from StringIO import StringIO
 
 
 # Collectd message types
-TYPE_HOST            = 0x0000
-TYPE_TIME            = 0x0001
-TYPE_TIME_HR         = 0x0008
-TYPE_PLUGIN          = 0x0002
+TYPE_HOST = 0x0000
+TYPE_TIME = 0x0001
+TYPE_TIME_HR = 0x0008
+TYPE_PLUGIN = 0x0002
 TYPE_PLUGIN_INSTANCE = 0x0003
-TYPE_TYPE            = 0x0004
-TYPE_TYPE_INSTANCE   = 0x0005
-TYPE_VALUES          = 0x0006
-TYPE_INTERVAL        = 0x0007
-TYPE_INTERVAL_HR     = 0x0009
-TYPE_MESSAGE         = 0x0100
-TYPE_SEVERITY        = 0x0101
+TYPE_TYPE = 0x0004
+TYPE_TYPE_INSTANCE = 0x0005
+TYPE_VALUES = 0x0006
+TYPE_INTERVAL = 0x0007
+TYPE_INTERVAL_HR = 0x0009
+TYPE_MESSAGE = 0x0100
+TYPE_SEVERITY = 0x0101
 
 # DS kinds
 DS_TYPE_COUNTER = 0
@@ -105,15 +107,14 @@ DS_TYPE_ABSOLUTE = 3
 
 header = struct.Struct("!2H")
 number = struct.Struct("!Q")
-short  = struct.Struct("!H")
+short = struct.Struct("!H")
 double = struct.Struct("<d")
 
 elements = {}
 
 
 def decode_values(pktype, plen, buf):
-    """ Decode values from collectd requests
-    """
+    """ Decode values from collectd requests """
     nvalues = short.unpack_from(buf, header.size)[0]
     off = header.size + short.size + nvalues
     valskip = double.size
@@ -142,15 +143,13 @@ def decode_values(pktype, plen, buf):
 
 # Get a u64
 def decode_number(pktype, pklen, buf):
-    """ Decode number typed value
-    """
+    """ Decode number typed value """
     return number.unpack_from(buf, header.size)[0]
 
 
 # Get a simple char
 def decode_string(msgtype, pklen, buf):
-    """ Decode string typed value
-    """
+    """ Decode string typed value """
     return buf[header.size:pklen-1]
 
 # Mapping of message types to decoding functions.
@@ -170,10 +169,8 @@ decoder_mapping = {
 }
 
 
-
 def decode_packet(buf):
-    """ decode packet from collectd requests
-    """
+    """ decode packet from collectd requests """
     off = 0
     buflen = len(buf)
     while off < buflen:
@@ -191,7 +188,7 @@ def decode_packet(buf):
 
 
 class Data(list, object):
-    """ This class will transform datas 
+    """ This class will transform datas
 
     :grouped_collectd_plugins: list of collecd plugins to group
     """
@@ -211,13 +208,11 @@ class Data(list, object):
         self.grouped_collectd_plugins = grouped_collectd_plugins
 
     def __str__(self):
-        """ Return a readable format of a Data object
-        """
+        """ Return a readable format of a Data object """
         return "[%i] %s" % (self.time, self.values)
 
     def get_srv_desc(self):
-        """ Determine service name from collectd datas
-        """
+        """ Determine service name from collectd datas """
         r = self.plugin
         if not r in self.grouped_collectd_plugins:
             if self.plugininstance is None:
@@ -270,7 +265,7 @@ class Data(list, object):
         """ Return data severity (exit code) from collectd datas
         """
         now = int(time.time())
-        if self.severity == 4: # OK
+        if self.severity == 4:  # OK
             returncode = 0
         elif self.severity == 1:
             returncode = 2
@@ -278,7 +273,12 @@ class Data(list, object):
             returncode = 1
         else:
             returncode = 3
-        return  '[%d] PROCESS_SERVICE_CHECK_RESULT;%s;%s;%d;%s' % (now, self.host, self.get_srv_desc(), returncode, self.message)
+        return '[%d] PROCESS_SERVICE_CHECK_RESULT;%s;%s;%d;%s' % (now,
+                                                                  self.host,
+                                                                  self.get_srv_desc(),
+                                                                  returncode,
+                                                                  self.message,
+                                                                  )
 
 
 class CollectdServer(object):
@@ -296,9 +296,13 @@ class CollectdServer(object):
         self.grouped_collectd_plugins = grouped_collectd_plugins
 
         logger.info("[Collectd] Opening socket")
-        family, socktype, proto, _, sockaddr = socket.getaddrinfo(
-                None if multicast else self.host, self.port,
-                socket.AF_UNSPEC, socket.SOCK_DGRAM, 0, socket.AI_PASSIVE)[0]
+        family, socktype, proto, _, sockaddr = socket.getaddrinfo(None if multicast else self.host,
+                                                                  self.port,
+                                                                  socket.AF_UNSPEC,
+                                                                  socket.SOCK_DGRAM,
+                                                                  0,
+                                                                  socket.AI_PASSIVE,
+                                                                  )[0]
 
         self._sock = socket.socket(family, socktype, proto)
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -393,14 +397,14 @@ class Element(object):
         else:
             oldvalues = self.perf_datas[mname]
 
-            for (olddstype,oldrawval,oldval,oldtime),(dstype,newrawval) in izip(oldvalues, mvalues):
+            for (olddstype, oldrawval, oldval, oldtime), (dstype, newrawval) in izip(oldvalues, mvalues):
                 difftime = mtime - oldtime
                 if difftime < 1:
                     continue
                 if dstype == DS_TYPE_COUNTER or dstype == DS_TYPE_DERIVE or dstype == DS_TYPE_ABSOLUTE:
-                    r.append((dstype,newrawval,(newrawval-oldrawval)/float(difftime),mtime))
+                    r.append((dstype, newrawval, (newrawval - oldrawval) / float(difftime), mtime))
                 elif dstype == DS_TYPE_GAUGE:
-                    r.append((dstype,newrawval,newrawval,mtime))
+                    r.append((dstype, newrawval, newrawval, mtime))
 
         self.perf_datas[mname] = r
         self.got_new_data = True
@@ -418,11 +422,11 @@ class Element(object):
             r = '[%d] PROCESS_SERVICE_OUTPUT;%s;%s;CollectD| ' % (now, self.host_name, self.sdesc)
             for (k, v) in self.perf_datas.iteritems():
                 for i, w in enumerate(v):
-                  if len(v) > 1:
-                      r += '%s_%d=%s ' % (k, i, str(w[2]))
-                  else:
-                      r += '%s=%s ' % (k, str(w[2]))
-            logger.debug('Updating: %s - %s ' %(self.host_name, self.sdesc))
+                    if len(v) > 1:
+                        r += '%s_%d=%s ' % (k, i, str(w[2]))
+                    else:
+                        r += '%s=%s ' % (k, str(w[2]))
+            logger.debug('Updating: %s - %s ' % (self.host_name, self.sdesc))
 #            self.perf_datas.clear()
             self.last_update = now
             self.got_new_data = False
@@ -430,7 +434,7 @@ class Element(object):
 
 
 class Collectd_arbiter(BaseModule):
-    """ Main class for this collecitd module """ 
+    """ Main class for this collecitd module """
     def __init__(self, modconf, host, port, multicast, grouped_collectd_plugins=[]):
         BaseModule.__init__(self, modconf)
         self.host = host
@@ -443,7 +447,7 @@ class Collectd_arbiter(BaseModule):
         """ Plugin main loop """
         self.set_proctitle(self.name)
         self.set_exit_handler()
-	
+
         try:
             cs = CollectdServer(self.host, self.port, self.multicast, self.grouped_collectd_plugins)
             while True:
@@ -461,7 +465,9 @@ class Collectd_arbiter(BaseModule):
                         elements[n] = e
                     e = elements[n]
                     if item.get_kind() == TYPE_VALUES:
-                        e.add_perf_data(item.get_metric_name(), item.get_metric_values(), item.get_time())
+                        e.add_perf_data(item.get_metric_name(),
+                                        item.get_metric_values(),
+                                        item.get_time())
                     elif item.get_kind() == TYPE_MESSAGE:
                         c = item.get_message_command()
                         if c is not None:
@@ -470,5 +476,3 @@ class Collectd_arbiter(BaseModule):
             logger.error("[Collectd] exception: %s" % str(e))
         except ValueError, exp:
             logger.error("[Collectd] Read error: %s" % exp)
-
-
