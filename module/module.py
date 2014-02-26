@@ -59,10 +59,15 @@ def get_instance(plugin):
     else:
         port = DEFAULT_PORT
 
+    if hasattr(plugin, 'grouped_collectd_plugins'):
+        grouped_collectd_plugins = plugin.grouped_collectd_plugins
+        grouped_collectd_plugins = [name.strip() for name in plugin.grouped_collectd_plugins.split(',')]
+    else:
+        grouped_collectd_plugins = []
 
     logger.info("[Collectd] Using host=%s port=%d multicast=%d" % (host, port, multicast))
 
-    instance = Collectd_arbiter(plugin, host, port, multicast)
+    instance = Collectd_arbiter(plugin, host, port, multicast, grouped_collectd_plugins)
     return instance
 
 import socket
@@ -171,7 +176,7 @@ def decode_packet(buf):
 
 
 class Data(list, object):
-    def __init__(self, **kw):
+    def __init__(self, grouped_collectd_plugins=[],  **kw):
         self.kind = 0
         self.time = 0
         self.interval = 0
@@ -183,14 +188,16 @@ class Data(list, object):
         self.message = ''
         self.severity = 0
         self.values = []
+        self.grouped_collectd_plugins = grouped_collectd_plugins
 
     def __str__(self):
         return "[%i] %s" % (self.time, self.values)
 
     def get_srv_desc(self):
         r = self.plugin
-        if self.plugininstance:
-            r += '-' + self.plugininstance
+        if not r in self.grouped_collectd_plugins:
+            if self.plugininstance is None:
+                r += '-' + self.plugininstance
         return r
 
     def get_message(self):
@@ -201,7 +208,10 @@ class Data(list, object):
 
     def get_metric_name(self):
         r = self.type
-        if self.typeinstance:
+        if self.plugin in self.grouped_collectd_plugins:
+            if not self.plugininstance is None:
+                r += '-' + self.plugininstance
+        if self.typeinstance is None:
             r += '-' + self.typeinstance
         return r
 
@@ -234,9 +244,10 @@ class Data(list, object):
 
 
 class CollectdServer(object):
-    def __init__(self, host, port, multicast):
+    def __init__(self, host, port, multicast, grouped_collectd_plugins=[]):
         self.host = host
         self.port = port
+        self.grouped_collectd_plugins = grouped_collectd_plugins
 
         logger.info("[Collectd] Opening socket")
         family, socktype, proto, _, sockaddr = socket.getaddrinfo(
@@ -260,7 +271,7 @@ class CollectdServer(object):
         logger.info("[Collectd] Socket is opened")
 
     def interpret_opcodes(self, iterable):
-        d = Data()
+        d = Data(self.grouped_collectd_plugins)
 
         for kind, data in iterable:
             d.kind = kind
@@ -354,7 +365,7 @@ class Element(object):
                       r += '%s_%d=%s ' % (k, i, str(w[2]))
                   else:
                       r += '%s=%s ' % (k, str(w[2]))
-            print 'Updating', (self.host_name, self.sdesc)
+            logger.debug('Updating: %s - %s ' %(self.host_name, self.sdesc))
 #            self.perf_datas.clear()
             self.last_update = now
             self.got_new_data = False
@@ -362,11 +373,12 @@ class Element(object):
 
 
 class Collectd_arbiter(BaseModule):
-    def __init__(self, modconf, host, port, multicast):
+    def __init__(self, modconf, host, port, multicast, grouped_collectd_plugins=[]):
         BaseModule.__init__(self, modconf)
         self.host = host
         self.port = port
         self.multicast = multicast
+        self.grouped_collectd_plugins = grouped_collectd_plugins
 
     # When you are in "external" mode, that is the main loop of your process
     def main(self):
@@ -374,16 +386,16 @@ class Collectd_arbiter(BaseModule):
         self.set_exit_handler()
 	
         try:
-            cs = CollectdServer(self.host, self.port, self.multicast)
+            cs = CollectdServer(self.host, self.port, self.multicast, self.grouped_collectd_plugins)
             while True:
                 # Each second we are looking at sending old elements
                 for e in elements.values():
                     c = e.get_command()
                     if c is not None:
-                        print 'Got ', c
+                        logger.debug("[Collectd] Got %s" % c)
                         self.from_q.put(ExternalCommand(c))
                 for item in cs.read():
-                    print item, item.__dict__
+                    logger.debug("[Collectd] %s: %s" % (item, item.__dict__))
                     n = item.get_name()
                     if n and n not in elements:
                         e = Element(item.host, item.get_srv_desc(), item.interval)
