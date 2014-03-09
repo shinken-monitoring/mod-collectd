@@ -68,7 +68,6 @@ def get_instance(plugin):
         port = DEFAULT_PORT
 
     if hasattr(plugin, 'grouped_collectd_plugins'):
-        grouped_collectd_plugins = plugin.grouped_collectd_plugins
         grouped_collectd_plugins = [name.strip()
                                     for name in plugin.grouped_collectd_plugins.split(',')]
     else:
@@ -215,7 +214,7 @@ class Data(list, object):
         """ Determine service name from collectd datas """
         r = self.plugin
         if not r in self.grouped_collectd_plugins:
-            if self.plugininstance is None:
+            if self.plugininstance:
                 r += '-' + self.plugininstance
         return r
 
@@ -234,9 +233,9 @@ class Data(list, object):
         """
         r = self.type
         if self.plugin in self.grouped_collectd_plugins:
-            if not self.plugininstance is None:
+            if self.plugininstance:
                 r += '-' + self.plugininstance
-        if self.typeinstance is None:
+        if self.typeinstance:
             r += '-' + self.typeinstance
         return r
 
@@ -461,7 +460,9 @@ class Collectd_arbiter(BaseModule):
                     logger.debug("[Collectd] %s: %s" % (item, item.__dict__))
                     n = item.get_name()
                     if n and n not in elements:
-                        e = Element(item.host, item.get_srv_desc(), item.interval)
+                        e = Element(item.host,
+                                    item.get_srv_desc(),
+                                    item.interval)
                         elements[n] = e
                     e = elements[n]
                     if item.get_kind() == TYPE_VALUES:
