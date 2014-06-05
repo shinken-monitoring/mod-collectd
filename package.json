@@ -1,5 +1,5 @@
 {
-  "name": "collectd",
+  "name": "mod-collectd",
   "types": ["module"],
   "version": "1.4",
   "homepage": "http://github.com/shinken-monitoring/mod-collectd",
@@ -9,6 +9,10 @@
     {
       "name": "Jean Gabès",
       "email": "naparuba@gmail.com"
+    },
+    {
+      "name": "Thibault Cohen",
+      "email": "thibault.cohen@savoirfairelinux.com"
     }
   ],
   "repository": "https://github.com/shinken-monitoring/mod-collectd",
