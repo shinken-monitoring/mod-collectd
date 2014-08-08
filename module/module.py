@@ -344,13 +344,14 @@ class CollectdServer(object):
                 d.type = data
             elif kind == TYPE_TYPE_INSTANCE:
                 d.typeinstance = data
-            elif kind == TYPE_VALUES:
-                d.values = data
-            elif kind == TYPE_MESSAGE:
-                d.message = data
             elif kind == TYPE_SEVERITY:
                 d.severity = data
-            yield d
+            elif kind == TYPE_VALUES:
+                d.values = data
+                yield d
+            elif kind == TYPE_MESSAGE:
+                d.message = data
+                yield d
 
     def receive(self):
         """ Read socket
