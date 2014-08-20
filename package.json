@@ -1,7 +1,7 @@
 {
   "name": "mod-collectd",
   "types": ["module"],
-  "version": "1.4.1",
+  "version": "1.4.2",
   "homepage": "http://github.com/shinken-monitoring/mod-collectd",
   "author": "Jean Gabès",
   "description": "Receive passive results from a collectd daemon",
