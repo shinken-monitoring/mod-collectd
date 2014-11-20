@@ -228,7 +228,6 @@ class Collectd_arbiter(BaseModule):
         elements = self.elements
         lock = self.lock
 
-        send_ready = False
         item_iterator = reader.interpret()
         while True:
             try:
@@ -240,7 +239,6 @@ class Collectd_arbiter(BaseModule):
                 continue
 
             assert isinstance(item, Data)
-            #logger.info("[Collectd] < %s" % item)
 
             if isinstance(item, Notification):
                 cmd = item.get_message_command()
@@ -273,9 +271,8 @@ class Collectd_arbiter(BaseModule):
                     elem.add_perf_data(item.get_metric_name(), item, item.time)
                     if name not in elements:
                         elements[name] = elem
-                if elem.send_ready:
-                    send_ready = True
         #end for
+
 
 
     def _read_collectd(self, reader):
@@ -284,7 +281,7 @@ class Collectd_arbiter(BaseModule):
 
 
     # When you are in "external" mode, that is the main loop of your process
-    def do_loop_turn(self):
+    def main(self):
 
         use_dedicated_thread = self.use_dedicated_thread
         elements = self.elements
@@ -327,7 +324,7 @@ class Collectd_arbiter(BaseModule):
                     next_clean = now + clean_every
                     if use_dedicated_thread:
                         if not collectd_reader_thread.isAlive() and not self.interrupted:
-                            raise Exception('Collectd read thread unexpectedly died.. exiting.')
+                            raise Exception('Collectd reader thread unexpectedly died.. exiting.')
 
                     todel = []
                     with lock:
